@@ -11,23 +11,26 @@ router = APIRouter(
     tags=["Contact"]
 )
 
-@router.get("/", response_model=List[schemas.ContactReponse])
+@router.get("/", response_model=List[schemas.ContactResponse])
 async def get_contacts(db: Session = Depends(db.get_db)):
     return db.query(models.Contact).all()
 
-@router.get("/{name}", status_code=status.HTTP_200_OK, response_model=List[schemas.ContactReponse])
+@router.get("/{name}", status_code=status.HTTP_200_OK, response_model=List[schemas.ContactResponse])
 async def get_specific_contact(name: str, db: Session = Depends(db.get_db)):
     get_contact = db.query(models.Contact).filter(models.Contact.nom.like(f"%{name}%")).all()
     if get_contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aucun contact n'a ce nom")
     return get_contact
     
-@router.post("/", status_code=status.HTTP_202_ACCEPTED ,response_model=schemas.ContactReponse)
+@router.post("/", status_code=status.HTTP_202_ACCEPTED ,response_model=schemas.ContactResponse)
 async def add_contact(contact: schemas.AddContact, db: Session = Depends(db.get_db)):
+    
     if contact.telephone is None:
-        get_contact = db.query(models.Contact).filter(or_(models.Contact.email == contact.email)).first()
+        get_contact = db.query(models.Contact).filter(models.Contact.email == contact.email).first()
     elif contact.email is None:
-        get_contact = db.query(models.Contact).filter(or_(models.Contact.email == contact.email)).first()
+        get_contact = db.query(models.Contact).filter(models.Contact.telephone == contact.telephone).first()
+    else: 
+        get_contact = db.query(models.Contact).filter(or_(models.Contact.telephone == contact.telephone, models.Contact.email == contact.email)).first()
 
     if get_contact:
         raise HTTPException(status_code=status.HTTP_306_RESERVED, detail="Ce contact existe déjà")
@@ -46,7 +49,7 @@ async def delete_contact(id: int,db: Session = Depends(db.get_db)):
     get_contact.delete(synchronize_session=False)
     db.commit()
     
-@router.put("/{id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.ContactReponse)
+@router.put("/{id}", status_code=status.HTTP_202_ACCEPTED, response_model=schemas.ContactResponse)
 async def update_contact(id: int, contact: schemas.ContactUpdate, db: Session = Depends(db.get_db)):
     get_contact = db.query(models.Contact).filter(models.Contact.id == id)
     if get_contact.first() is None:
